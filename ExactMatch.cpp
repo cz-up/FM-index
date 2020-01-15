@@ -17,7 +17,7 @@ char * get_queryfrag(uint32_t k,char *query)
 	return frag;
 }
 
-uint32_t calc_C(ReadMem mem,char c)
+uint32_t calc_C(sFMindex mem,char c)
 {
 	uint32_t rslt;
 	switch(c)
@@ -65,7 +65,7 @@ uint32_t calc_offset(char c)
 	return offset;
 }
 
-uint32_t calc_OCC(ReadMem mem,struct build_para para,char c,uint32_t pos)
+uint32_t calc_OCC(sFMindex mem,struct build_para para,char c,uint32_t pos)
 {
 	//calc the occ_array  input : pos(pos in bseq) gap(every gap pos save a occa)
 	uint32_t offset = calc_offset(c);
@@ -88,19 +88,19 @@ uint32_t calc_OCC(ReadMem mem,struct build_para para,char c,uint32_t pos)
 	}
 }
 
-uint32_t LF_Mapping(ReadMem mem,struct build_para para,char c,uint32_t pos)
+uint32_t LF_Mapping(sFMindex mem,struct build_para para,char c,uint32_t pos)
 {
 	//last first mapping
 	return calc_C(mem,c) + calc_OCC(mem,para,c,pos) + 1;
 }
 
-uint32_t LF_Mapping_l(ReadMem mem,struct build_para para,char c,uint32_t pos)
+uint32_t LF_Mapping_l(sFMindex mem,struct build_para para,char c,uint32_t pos)
 {
 	//last first mapping
 	return calc_C(mem,c) + calc_OCC(mem,para,c,pos) + 1;
 }
 
-uint32_t LF_Mapping_h(ReadMem mem,struct build_para para,char c,uint32_t pos)
+uint32_t LF_Mapping_h(sFMindex mem,struct build_para para,char c,uint32_t pos)
 {
 	//last first mapping
 	return calc_C(mem,c) + calc_OCC(mem,para,c,pos+1) + 1 - 1;
@@ -108,7 +108,7 @@ uint32_t LF_Mapping_h(ReadMem mem,struct build_para para,char c,uint32_t pos)
 
 
 
-uint32_t* calc_SArange(ReadMem mem,struct build_para para,char *read)
+uint32_t* calc_SArange(sFMindex mem,struct build_para para,char *read)
 {
 	char ch;
 	int32_t i = strlen(read) - 1;
@@ -135,7 +135,7 @@ uint32_t* calc_SArange(ReadMem mem,struct build_para para,char *read)
 	return p;
 }
 
-uint32_t calc_SA(ReadMem mem,struct build_para para,uint32_t pos)
+uint32_t calc_SA(sFMindex mem,struct build_para para,uint32_t pos)
 {
 	if(pos % para.sa_gap == 0)
 	{
@@ -158,4 +158,76 @@ uint32_t calc_SA(ReadMem mem,struct build_para para,uint32_t pos)
 		}
 		return mem.sa[tmp/para.sa_gap] + cnt;
 	}
+}
+
+int mainem(int argc, char** argv)
+{
+	struct build_para para;
+	char c;
+	for(int32_t i=1;i<argc;i=i+2)
+	{
+		if(argv[i][0]=='-'&&argv[i][1]=='h')//Method
+		{
+			para.ref_path=argv[i+1];
+		}
+		else if(argv[i][0]=='-'&&argv[i][1]=='s')//sa_gap
+		{
+			para.sa_gap=atoi(argv[i+1]);
+		}
+		else if(argv[i][0]=='-'&&argv[i][1]=='o')//sa_gap
+		{
+			para.occ_gap=atoi(argv[i+1]);
+		}
+		else if(argv[i][0]=='-'&&argv[i][1]=='l')//level
+		{
+			para.level=atoi(argv[i+1]);
+		}
+		else if(argv[i][0]=='-'&&argv[i][1]=='t')//thread_num
+		{
+			para.thread_num=atoi(argv[i+1]);
+		}
+		else if(argv[i][0]=='-'&&argv[i][1]=='m')//max_len
+		{
+			para.max_len=atoi(argv[i+1]);
+		}
+		else if(argv[i][0]=='-'&&argv[i][1]=='c')//max_len
+		{
+			c=*argv[i+1];
+		}
+	}
+	char *dir = "./index";
+	if(access(dir,0) == -1)
+	{
+		printf("%s not exist.\n",dir);
+		mkdir(dir, 0755);
+	}
+	struct timeval tvs,tve;
+	build(para);
+
+	build_occA(para);
+	char index[] = "./index";
+	sFMindex prm;
+	read_bfile2mem(index,&prm,0);
+
+	uint32_t *occav = NULL;
+	occav = (uint32_t *)read_binfile("./index/OCCAV");
+
+	cout << "c = " << c << endl;
+	uint32_t ret, retv;
+	double span;
+
+	gettimeofday(&tvs,NULL);
+	for(uint32_t i = 0; i < strlen(prm.b); i++)
+	{
+		ret = calc_OCC(prm,para,c,i);
+		if(i == 5902)
+		{
+			cout << ret << endl;
+		}
+	}
+	gettimeofday(&tve,NULL);
+	span = tve.tv_sec-tvs.tv_sec + (tve.tv_usec-tvs.tv_usec)/1000000.0;
+	cout <<"time of construct calc_OCC is: "<<span<<endl;
+
+	return 0;
 }

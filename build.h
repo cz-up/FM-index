@@ -41,4 +41,6 @@ struct mult_bsa_para
 void build(struct build_para para_build);
 void build_occ(char c,struct build_para para_build);
 void build_occA(struct build_para para_build);
+
+
 #endif /* BUILD_H_ */
